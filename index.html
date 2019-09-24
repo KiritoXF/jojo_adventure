@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+    <!-- Element-ui -->
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <!-- 引入组件库 -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!-- pixi.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>
+    <script type="text/javascript" src="./lib/assets/js/main.js"></script>
+    <link rel="stylesheet" type="text/css" href="./assets/css/main.css" />
+    <title>jojo's adventure</title>
+</head>
+<div id="game" v-cloak>
+    <el-tabs v-model="activeName" @tab-click="" type="border-card">
+        <el-tab-pane label="Player's Info" name="player_info_card">
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <div class="grid-content">
+                        <div>
+                            <i class="el-icon-user-solid"></i>
+                            Name: {{ player.name }}
+                            <el-button type="text" @click="input_name(player)">start</el-button>
+                        </div>
+                        <el-button type="text" @click="fightDialogShown = true">点击打开 Dialog</el-button>
+                        <el-dialog title="Battle Panel" :visible.sync="fightDialogShown" width="80%" height="80%">
+                            <el-row :gutter="20">
+                                <el-col :span="12">
+                                    <!-- player's view-->
+                                    <sprite-life-magic-bar :max-hp="player.maxHP" :current-hp="player.currentHP">
+                                    </sprite-life-magic-bar>
+                                    <sprite-panel :image-url="`assets/images/404.png`" fit-type="cover"
+                                        :name="player.name" :lv="player.lv" :hp="player.currentHP" :atk="player.atk">
+                                    </sprite-panel>
+                                </el-col>
+                                <el-col :span="12">
+                                    <!-- monster's' view -->
+                                    <sprite-life-magic-bar :max-hp="monsterList[0].maxHP"
+                                        :current-hp="monsterList[0].currentHP">
+                                    </sprite-life-magic-bar>
+                                    <sprite-panel :image-url="`assets/images/404.png`" fit-type="cover"
+                                        :name="monsterList[0].name" :lv="monsterList[0].lv"
+                                        :hp="monsterList[0].currentHP" :atk="monsterList[0].atk"></sprite-panel>
+                                </el-col>
+                            </el-row>
+                            <!-- button panel-->
+                            <el-row :gutter="10">
+                                <el-col :span="12">
+                                    <!--<div v-for="item in skill">
+                                        <battle-attack-button :button-enabled="true"
+                                            @button-click="attack(player, monsterList, item)">
+                                        </battle-attack-button>
+                                    </div>-->
+                                    <battle-attack-button :button-enabled="true"
+                                        @button-click="attack(player, monsterList, skill[0])">
+                                    </battle-attack-button>
+                                </el-col>
+                                <el-col :span="12">
+                                    <div class="grid-content bg-purple">
+                                        <battle-attack-button :button-enabled="true" :button-name="skill[0].message"
+                                            @button-click="attack(player, monsterList, skill[0])">
+                                        </battle-attack-button>
+                                        <el-button style="width: 100%; height:100%" type="warning"
+                                            @click="attack(player, monsterList, skill[2])"
+                                            :disabled="fightFlag || player.name ==='' ">無駄無駄無駄!</el-button>
+                                    </div>
+                                </el-col>
+                            </el-row>
+                            <el-row :gutter="10">
+                                <el-col :span="12">
+                                    <div class="grid-content bg-purple">
+                                        <el-button style="width: 100%; height:100%" type="primary"
+                                            @click="attack(player, monsterList, skill[3])"
+                                            :disabled="fightFlag || player.name ==='' ">時間を止めろ!</el-button>
+                                    </div>
+                                </el-col>
+                                <el-col :span="12">
+                                    <div class="grid-content bg-purple">
+                                        <el-button style="width: 100%; height:100%" type="info"
+                                            @click="attack(player, monsterList, skill[0])"
+                                            :disabled="fightFlag || player.name ==='' ">普通攻撃</el-button>
+                                    </div>
+                                </el-col>
+                            </el-row>
+                            <el-divider content-position="center">battle log</el-divider>
+                            <div v-for="item in battleLog">{{ item }}</div>
+                            <span slot="footer" class="dialog-footer">
+                                <el-button @click="fightDialogShown = false">取 消</el-button>
+                                <el-button type="primary" @click="fightDialogShown = false">确 定</el-button>
+                            </span>
+                        </el-dialog>
+                        <p><i class="el-icon-finished">LV: {{ player.lv }}</i>
+                            <el-button type="primary" @click="level_up" :disabled="player.exp <= 10">level
+                                up</el-button>
+                        </p>
+                        <p><i class="el-icon-sugar"></i>Hp: {{ player.currentHP }} ( + {{ player.benefit_hp }})
+                            <el-button type="primary" @click="recover_hp" :disabled="player.gold < player.lv * 5">
+                                recover
+                                health(cost: {{ player.lv * 5}} golds)</el-button>
+                        </p>
+                        <p><i class="el-icon-ice-cream-round"></i>Attack: {{ player.atk }} ( + {{ player.benefit_atk }})
+                        </p>
+                        <p><i class="el-icon-fork-spoon">EXP: {{ player.exp }}</i></p>
+                        <p><i class="el-icon-cherry">Skill Point: {{ player.skill_point }}</i></p>
+                        <p><i class="el-icon-coin">Gold: {{ player.gold }}</i></p>
+                        <p><i class="el-icon-star-off">Diamond: {{ player.diamond }}</i></p>
+                    </div>
+                </el-col>
+                <el-col :span="12">
+                    <div class="grid-content bg-purple">
+                        <el-table :data="monsterList" height="250" border style="width: 100%">
+                            <el-table-column prop="name" label="Name" width="180">
+                            </el-table-column>
+                            <el-table-column prop="lv" label="lv" width="180">
+                            </el-table-column>
+                            <el-table-column prop="currentHP" label="currentHP" width="180">
+                            </el-table-column>
+                            <el-table-column prop="atk" label="Atk" width="180">
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </el-col>
+            </el-row>
+            <el-row :gutter="10">
+                <el-col :span="24">
+                    <div class="grid-content bg-purple">
+                        <el-button type="success" @click="find_enemy(monsterList)" :disabled="player.currentHP <= 0"
+                            style="width: 100%;">find
+                            enemy</el-button>
+                    </div>
+                </el-col>
+            </el-row>
+            <el-input v-model="player.name" placeholder="please type your name here" maxlength="20" show-word-limit>
+            </el-input>
+        </el-tab-pane>
+        <el-tab-pane label="Shop" name="shop">
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <div class="grid-content">
+                        <!-- picture -->
+                        <p>It's cold outside. Look at what i have.</p>
+                        <p>(here is going to be a picture of the shopkeeper.)</p>
+                    </div>
+                </el-col>
+                <el-col :span="12">
+                    <div class="grid-content bg-purple">
+                        <el-table :data="this.shopList" height="250" border style="width: 100%">
+                            <el-table-column prop="name" label="Name" width="180">
+                                <template slot-scope="scope">
+                                    <el-popover trigger="hover" placement="left">
+                                        <p>{{ scope.row.description }}</p>
+                                        <div slot="reference" class="name-wrapper">
+                                            {{ scope.row.name }}
+                                        </div>
+                                    </el-popover>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="cost" label="Cost" width="180">
+                            </el-table-column>
+                            <el-table-column label="buy">
+                                <template slot-scope="scope">
+                                    <el-button @click="buy(scope.$index)" type="text" size="small">buy</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </el-col>
+            </el-row>
+        </el-tab-pane>
+        <el-tab-pane label="tbd" name="tbd">
+            <el-row :gutter="20">
+                <!-- logMessage -->
+                <el-col :span="6">
+                    <!-- 只显示最新的20项 -->
+                    <transition-group name="list" tag="p">
+                        <span v-for="item, i in this.logMessage.slice(-5)" v-bind:key="i" class="list-item">
+                            {{ item }}
+                        </span>
+                    </transition-group>
+                </el-col>
+                <!-- 操作レイアウト -->
+                <el-col :span="10">
+                    <div>
+                        <el-button @click="coding()" :disabled="!codingButtonEnabled">
+                            <el-progress :text-inside="true" :stroke-width="18" :percentage="codingProgress">
+                            </el-progress>
+                            敲一行代码
+                        </el-button>
+                    </div>
+                    <div v-show="employeeNum > 0">
+                        <el-button @click="overTime()" :disabled="!employeeNum">
+                            加班
+                        </el-button>
+                    </div>
+                    <hire-employee-button button-name="雇佣一名初级程序员" :tooltip-content="getToolTipContent(1)"
+                        v-on:button-click="hiring" :level="1" :button-enabled="money >= employeeCost[0]">
+                    </hire-employee-button>
+                    <hire-employee-button button-name="雇佣一名中级程序员" :tooltip-content="getToolTipContent(2)"
+                        v-on:button-click="hiring" :level="2" :button-enabled="money >= employeeCost[1]">
+                    </hire-employee-button>
+                    <hire-employee-button button-name="雇佣一名高级程序员" :tooltip-content="getToolTipContent(3)"
+                        v-on:button-click="hiring" :level="3" :button-enabled="money >= employeeCost[2]">
+                    </hire-employee-button>
+                </el-col>
+                <!-- resource -->
+                <el-col :span="8">
+                    <div>
+                        <i class="el-icon-coin">Money: {{ money }}</i>
+                    </div>
+                    <div v-show="employee[0] > 0">
+                        <i class="el-icon-coordinate">初级程序员: {{ employee[0] }}</i>
+                    </div>
+                    <div v-show="employee[1] > 0">
+                        <i class="el-icon-coordinate">中级程序员: {{ employee[1] }}</i>
+                    </div>
+                    <div v-show="employee[2] > 0">
+                        <i class="el-icon-coordinate">高级程序员: {{ employee[2] }}</i>
+                    </div>
+                </el-col>
+            </el-row>
+        </el-tab-pane>
+    </el-tabs>
+</div>
+
+</html>
+
+<script>
+    Vue.component('todo-item', {
+        props: ['todo'],
+        template: '<li>This is a todo</li>'
+    });
+
+    // router test
+    const NotFound = {
+        template: '<p>404 Not Found</p>'
+    };
+    const Home = {
+        template: '<p>Home Page</p>'
+    };
+    const About = {
+        template: '<p>Aboue Page</p>'
+    };
+
+    const routes = {
+        '/': Home,
+        '/about': About
+    };
+
+    // 雇佣组件 //done
+    Vue.component('hire-employee-button', {
+        props: {
+            buttonName: String,
+            tooltipContent: String,
+            level: Number,
+            buttonEnabled: Boolean,
+        },
+        methods: {
+            hireEmployee() {
+                this.$emit('button-click', this.level);
+            }
+        },
+        template: `<div><el-tooltip class="item" effect="dark" :content="tooltipContent" placement="right">,
+                <el-button  @click="hireEmployee" :disabled="!buttonEnabled">
+                    {{ buttonName }}
+                </el-button>
+            </el-tooltip></div>`
+    });
+
+    // sprite Life and Magic progress Bar // done
+    Vue.component('sprite-life-magic-bar', {
+        props: {
+            maxHp: Number,
+            currentHp: Number,
+        },
+        computed: {
+            percent() {
+                return this.currentHp < 0 ? 0 : Number((this.currentHp / this.maxHp * 100).toFixed(1));
+            }
+        },
+        template: `<div>
+            <el-progress :percentage="percent" color="#D0104C" :show-text="false" :stroke-width="18" style="width:100%"></el-progress>
+            <span>HP: {{ currentHp }} / {{ maxHp }}</span>
+            </div>`
+    });
+
+    // Image Component
+    // el-image 里的width似乎对应的是高度，而套着它的div的width才控制的是宽度
+    Vue.component('sprite-image', {
+        props: {
+            imageUrl: String,
+            fitType: String,
+        },
+        template: `<div style="width: 100%; border-radius: 4px; border: 1px solid #c5c5c5;">
+                <el-image style="width: 100%;" :src="imageUrl" :fit="fitType">
+                    <div slot="error" class="image-slot">
+                        <i class="el-icon-picture-outline"></i>
+                    </div>
+                </el-image>
+            </div>`
+    });
+
+    // sprite 面板 // done
+    Vue.component('sprite-panel', {
+        props: {
+            name: String,
+            lv: Number,
+            atk: Number,
+            // picture
+            imageUrl: String,
+            fitType: String,
+        },
+        template: `<div>
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <h3><i class="el-icon-user-solid">Name: {{ name }} </i></h3>
+                    <h3><i class="el-icon-finished">LV: {{ lv }}</i></h3>
+                    <h3><i class="el-icon-ice-cream-round">Attack: {{ atk }}</i>
+                    </h3>
+                </el-col>
+                <el-col :span="12">
+                    <el-image style="width: 100%;" :src="imageUrl" :fit="fitType">
+                        <div slot="error" class="image-slot">
+                            <i class="el-icon-picture-outline"></i>
+                        </div>
+                    </el-image>
+                </el-col>
+            </el-row>
+        </div>`
+    });
+
+    Vue.component('battle-attack-button', {
+        props: {
+            buttonEnabled: Boolean,
+            player: Object,
+            monster: Array,
+            skill: Object,
+        },
+        methods: {
+            attack() {
+                // 这个button-click 才是html里要用到的属性
+                this.$emit('button-click', this.player, this.monster, this.skill);
+            }
+        },
+        template: `<div>
+            <el-button style="width: 100%; height:100%" type="primary" @click="attack"
+                :disabled="!buttonEnabled">{{ skill.message }}</el-button>
+            </div>`
+    });
+
+    var game = new Vue({
+        el: '#game',
+        beforeCreate() {
+            console.log("调用了beforeCreate");
+        },
+        beforeMount() {
+            console.log("调用了beforeMount");
+        },
+        mounted() {
+            console.log("调用了mounted");
+        },
+        beforeUpdate() {
+            console.log('调用了beforeUpdate');
+        },
+        updated() {
+            console.log('调用了updated');
+        },
+        beforeDestory() {
+            console.log('调用了beforeDestory');
+        },
+        destoryed() {
+            console.log('调用了destoryed');
+        },
+        data: {
+            message: 'Next holiday is 5 mounths later',
+            jojoMessage: 'まさかお前もスタンド使いですか?!!',
+            fightFlag: false,
+            activeName: 'player_info_card',
+            battleLog: [],
+            currentRoute: window.location.pathname,
+            // dialog
+            fightDialogShown: false,
+            // tbd
+            codingProgress: 0,
+            codingButtonEnabled: true,
+            logMessage: ['你在清晨6点钟醒来，做点什么吧。'],
+            money: 10,
+            employee: [0, 0, 0], // 
+            employeeCost: [10, 30, 100],
+            hiringMessage: [
+                '你雇佣了一名初级程序员来敲代码',
+                '你雇佣了一名中级程序员来敲代码',
+                '你雇佣了一名高级程序员来敲代码',
+                '你雇佣了一名leader来review代码',
+                '你雇佣了一名项目经理来管理团队',
+            ],
+            p1_programmer_timer: null,
+            player: {
+                name: 'jojo',
+                lv: 1,
+                maxHP: 300,
+                currentHP: 300,
+                benefit_hp: 0,
+                atk: 12,
+                benefit_atk: 0,
+                exp: 0,
+                skill_point: 0,
+                gold: 0,
+                diamond: 0,
+                message: 'welcome to Jojo\'s Vue game. please enter your name.',
+
+            },
+            skill: [{
+                    name: 'normal attack',
+                    damage: 50,
+                    rate: 1,
+                    message: '普通攻击'
+                },
+                {
+                    name: 'stand attack',
+                    damage: 100,
+                    rate: 1.2,
+                    message: '替身攻击'
+                },
+                {
+                    name: 'ora attack',
+                    damage: 150,
+                    rate: 1.5,
+                    message: 'オラオラオラオラオラオラオラ'
+                },
+                {
+                    name: 'time attack',
+                    damage: 200,
+                    rate: 2,
+                    message: 'the world'
+                }
+            ],
+            monsterList: [{
+                    name: 'ACT-Ⅲ',
+                    lv: 1,
+                    maxHP: 100,
+                    currentHP: 100,
+                    atk: 10
+                },
+                {
+                    name: 'ゴールデンタウンスピリット',
+                    lv: 2,
+                    maxHP: 145,
+                    currentHP: 145,
+                    atk: 15
+                },
+                {
+                    name: 'プラチナスター',
+                    lv: 5,
+                    maxHP: 200,
+                    currentHP: 200,
+                    atk: 20
+                }
+            ],
+            shopList: [{
+                    id: '0001',
+                    name: 'normal sword',
+                    description: 'just a normal sword for noob.',
+                    cost: 10,
+                    attribute: {
+                        hp: 0,
+                        atk: 5
+                    }
+                },
+                {
+                    id: '0002',
+                    name: 'normal shield',
+                    description: 'you won\'t hope it will keep you from monsters.',
+                    cost: 15,
+                    attribute: {
+                        hp: 50,
+                        atk: 0
+                    }
+                },
+                {
+                    id: '0003',
+                    name: 'magic ring',
+                    description: 'The most powerful item in this game, i guess.',
+                    cost: 50,
+                    attribute: {
+                        hp: 100,
+                        atk: 20
+                    }
+                },
+                {
+                    id: '0004',
+                    name: 'diamond',
+                    description: 'Shining! People love this.',
+                    cost: 100
+                }
+            ],
+            combat: {
+                active: 0, // 代表当前 active的数组的index
+                // 预计从json或js文件导入
+                combatBlock: [{
+                    name: 'welcome combat',
+                    enemyLevel: [1, 1, 2],
+                    status: 0, // 0: not done, 1: tryied but not finished, 2: finished
+                    rewards: [{
+                        id: '0004',
+                        quantity: 1
+                    }]
+                }]
+            },
+            combatList() {
+                return this.generate_enemy(this.combat.combatBlock[this.combat.active].enemyLevel);
+            }
+        },
+        computed: {
+            employeeNum() {
+                return this.employee[0] + this.employee[1] + this.employee[2];
+            },
+            ViewComponent() {
+                return routes[this.currentRoute] || NotFound;
+            },
+        },
+        /* mounted: {
+            input_name: function() {
+                this.$prompt('please enter your name', 'welcome to Jojo\'s Vue game', {
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'キャンセル',
+                }).then(({
+                    name
+                }) => {
+                    this.player.name = name;
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '入力キャンセル'
+                    });
+                });
+            }
+        }, */
+        watch: {
+            monsterList: function () {
+                this.fightFlag = this.monsterList.length === 0 || this.player.currentHP <= 0;
+            },
+            // 原意是要触发vue的列表过渡，结果只有插入数据的时候有动画，删除时没有
+            logMessage() {
+                if (this.logMessage.length > 20) {
+                    this.logMessage.splice(0, 1);
+                }
+            },
+            // 如果 `money` 发生改变，这个函数就会运行
+            // 似乎不太好使，有待改进
+            money() {
+                let me = this;
+                let storage = window.localStorage;
+                window.clearInterval(me.p1_programmer_timer);
+                me.p1_programmer_timer = window.setInterval(function () {
+                    me.money = parseFloat((me.money + 1 * me.employee[0] + 2 * me.employee[1] + 3 * me
+                            .employee[2])
+                        .toFixed(2));
+                }, 1000);
+            },
+        },
+        methods: {
+            attack(player, monsterList, attackType) {
+                this.confirm_name();
+                if (monsterList.length === 0) {
+                    this.fightFlag = true;
+                    this.win_game();
+                }
+                if (monsterList.length !== 0) {
+                    let mon = monsterList[0];
+                    this.damage(player, mon, attackType);
+                    if (player.currentHP <= 0) {
+                        this.lose_game();
+                    } else if (mon.currentHP <= 0) {
+                        this.defeat_enemy(mon, mon.lv * 5, mon.lv * 10);
+                    }
+                }
+                this.message = this.message.split('').reverse().join('')
+            },
+            damage(player, mon, attackType) {
+                mon.currentHP -= player.atk * attackType.rate;
+                this.writebattleLog(player.name, attackType.message, player.atk * attackType.rate);
+                // 此处默认monster只有normal attack
+                player.currentHP -= mon.atk;
+                this.writebattleLog(mon.name, 'normal attack', mon.atk);
+            },
+            level_up() {
+                if (this.player.exp >= 10) {
+                    this.player.exp -= 10;
+                    this.player.lv++;
+                    this.player.maxHP += 100;
+                    this.player.currentHP = this.player.maxHP;
+                    this.player.atk += 5;
+                    this.player.skill_point++;
+                }
+            },
+            recover_hp: function () {
+                if (this.player.gold >= this.player.lv * 5) {
+                    this.player.currentHP += 200;
+                    this.player.gold -= this.player.lv * 5;
+                }
+            },
+            find_enemy: function (monsterList) {
+                // 用math.random生成随机数
+                // 在monsterList里append随机个数的现有monster(指三个种类的)
+                const randomNum = Math.floor(Math.random() * this.player.lv) + 1;
+                var monster = {
+                    name: 'test',
+                    lv: randomNum,
+                    maxHP: randomNum * 100,
+                    currentHP: randomNum * 100,
+                    atk: randomNum * 10
+                };
+                this.monsterList.push(monster);
+            },
+            // 根据 combat 的 enemyLevel 数组来生成对应的 enemy
+            generate_enemy(levelList) {
+                let enemyList = [];
+                levelList.forEach((level, i) => {
+                    let randomNum = Math.floor(Math.random() * this.player.lv) + 1;
+                    enemyList.push({
+                        name: `Test${randomNum}`,
+                        lv: randomNum,
+                        maxHP: randomNum * 100,
+                        currentHP: randomNum * 100,
+                        atk: randomNum * 10
+                    });
+                });
+                return enemyList;
+            },
+            open_combat_dialog() {
+                this.fightDialogShown = true;
+            },
+            confirm_name: function () {
+                if (this.player.name === 'jojo') {
+                    this.$message({
+                        message: '俺は人間をやめろ Jojo!!',
+                        type: 'warning'
+                    });
+                }
+            },
+            defeat_enemy: function (monster, exp, gold) {
+                this.monsterList.splice(0, 1);
+                this.player.exp += exp;
+                this.player.gold += gold;
+                this.battleLog = [];
+                this.$message({
+                    message: monster.name + ' has been defeated' + '\r\n' +
+                        'you have earned ' + exp + ' exp and ' + gold + ' golds',
+                    type: 'success'
+                });
+            },
+            win_game: function () {
+                this.$message({
+                    message: 'You won all the fights. congratulation!',
+                    type: 'success',
+                    duration: 0,
+                    showClose: true
+                });
+                return;
+            },
+            lose_game: function () {
+                this.$message({
+                    message: 'GAME OVER. you can refresh and try again',
+                    type: 'error',
+                    duration: 0,
+                    showClose: true
+                });
+                this.fightFlag = true;
+            },
+            // this doesn't work
+            input_name: function (player) {
+                this.$prompt('please enter your name', 'welcome to Jojo\'s Vue game', {
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'キャンセル'
+                }).then(({
+                    name
+                }) => {
+                    this.player.name = name;
+                    alert(name);
+                    alert(this.player.name);
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '入力キャンセル'
+                    });
+                });
+            },
+            buy: function (index) {
+                const item = this.shopList[index];
+                if (this.player.gold >= item.cost) {
+                    if (item.name === 'diamond') {
+                        this.player.diamond++;
+                    } else {
+                        this.player.gold -= item.cost;
+                        this.player.maxHP += item.attribute.hp;
+                        this.player.atk += item.attribute.atk;
+                        this.player.benefit_hp += item.attribute.hp;
+                        this.player.benefit_atk += item.attribute.atk;
+                    }
+                    this.$message({
+                        message: 'You have bought the ' + item.name,
+                        type: 'success',
+                        showClose: true
+                    });
+                } else {
+                    this.$message({
+                        message: 'You don\'t have enough money, don\'t try to fool me noob!',
+                        type: 'error',
+                        showClose: true
+                    });
+                }
+            },
+            // 之后做个对象，直接用sprite和skill两个参数
+            writebattleLog(sprite, skill, damage) {
+                //who, what skill, 
+                const log = `${sprite}使用了${skill}, 造成了 ${damage} 点伤害`;
+                this.battleLog.push(log);
+            },
+            // 以下是tbd内容的函数
+            ten_second_ticker: function () {
+                this.codingProgress++;
+            },
+            coding() {
+                let me = this;
+                me.codingButtonEnabled = false;
+                me.money++;
+                me.logMessage.push('你敲了一行代码，挣到了 $1');
+                let codingInterval = window.setInterval(function () {
+                    me.codingProgress += 10;
+                    if (me.codingProgress >= 100) {
+                        me.codingButtonEnabled = true;
+                        me.codingProgress = 0;
+                        window.clearInterval(codingInterval);
+                    }
+
+                }, 200);
+            },
+            // 招聘对应level的员工
+            hiring(level) {
+                let index = level - 1;
+                if (this.money >= this.employeeCost[index]) {
+                    this.employee[index]++;
+                    this.money -= this.employeeCost[index];
+                    this.employeeCost[index] = (1.5 * this.employeeCost[index]).toFixed(2);
+                    this.logMessage.push(this.hiringMessage[index]);
+                }
+            },
+            getToolTipContent(level) {
+                return `花费 ${this.employeeCost[level - 1]}`;
+            },
+            overTime() {
+                this.logMessage.push('你发起了加班，但是被员工否决了');
+            }
+        }
+    });
+</script>
