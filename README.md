@@ -1,4 +1,4 @@
-# jojo's adventure
+## jojo's adventure
 
 + Vue.js+ElementUI
 + Vue单页面demo
@@ -17,7 +17,15 @@
 
 从目前的完成程度来看，可以进行简单的运行，但是存在一些bug。
 
-# 可供参考的内容
+## demo
+
+GitHub Pages: [jojo_adventure](https://kiritoxf.github.io/jojo_adventure)
+
+目前不可用，似乎是因为域名配置的问题。稍后会进行修复（也许吧）。
+
+也可以把`index.html`下载到本地打开。
+
+## 可供参考的内容
 
 1.设计理念
 
